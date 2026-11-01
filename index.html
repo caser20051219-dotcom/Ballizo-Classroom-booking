@@ -28,10 +28,6 @@
       </div>
       
       <div class="flex items-center space-x-3">
-        <button id="configBtn" type="button" onclick="openConfigModal()" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg text-xs flex items-center gap-1 border">
-          <i data-lucide="settings" class="w-4 h-4"></i>
-          <span>Firebase 設定</span>
-        </button>
         <button id="authBtn" type="button" onclick="openAuthModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
           <i data-lucide="user" class="w-4 h-4"></i>
           <span id="authBtnText">學員 / 管理員登入</span>
@@ -56,8 +52,8 @@
 
     <!-- 頁籤切換（管理員模式下可見） -->
     <div id="adminTabs" class="hidden border-b border-slate-200 flex space-x-4">
-      <button type="button" onclick="switchTab('booking')" id="tabBookingBtn" class="py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600">預約教室</button>
-      <button type="button" onclick="switchTab('admin')" id="tabAdminBtn" class="py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700">管理員後台 (名單、課程與預約)</button>
+      <button type="button" onclick="switchTab('booking')" id="tabBookingBtn" class="py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600 cursor-pointer">預約教室</button>
+      <button type="button" onclick="switchTab('admin')" id="tabAdminBtn" class="py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 cursor-pointer">管理員後台 (名單、課程與預約)</button>
     </div>
 
     <!-- 頁面一：預約教室區域 -->
@@ -91,7 +87,7 @@
           <div class="text-sm text-slate-600">
             已選擇區間：<span id="selectedSlotText" class="font-bold text-amber-600">無</span>
           </div>
-          <button id="submitBookingBtn" type="button" onclick="submitBooking()" disabled class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-2 rounded-lg font-medium text-sm transition">
+          <button id="submitBookingBtn" type="button" onclick="submitBooking()" disabled class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-2 rounded-lg font-medium text-sm transition cursor-pointer">
             確認預約
           </button>
         </div>
@@ -217,37 +213,12 @@
 
   </main>
 
-  <!-- 彈窗 1：Firebase 連線設定 Modal -->
-  <div id="configModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="font-bold text-lg text-slate-900">Firebase 連線設定</h3>
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-semibold text-slate-600">ApiKey</label>
-          <input type="text" id="cfgApiKey" class="w-full border rounded-lg p-2 text-xs font-mono">
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-slate-600">ProjectId</label>
-          <input type="text" id="cfgProjectId" class="w-full border rounded-lg p-2 text-xs font-mono">
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-slate-600">AppId</label>
-          <input type="text" id="cfgAppId" class="w-full border rounded-lg p-2 text-xs font-mono">
-        </div>
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button type="button" onclick="closeConfigModal()" class="px-4 py-2 border rounded-lg text-xs font-medium">取消</button>
-        <button type="button" onclick="saveConfig()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium">儲存並連線</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 彈窗 2：身份登入 Modal -->
+  <!-- 彈窗：身份登入 Modal -->
   <div id="authModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-xl">
       <div class="flex border-b">
-        <button type="button" onclick="switchAuthMode('student')" id="authStudentTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600">學員登入</button>
-        <button type="button" onclick="switchAuthMode('admin')" id="authAdminTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400">管理員登入</button>
+        <button type="button" onclick="switchAuthMode('student')" id="authStudentTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600 cursor-pointer">學員登入</button>
+        <button type="button" onclick="switchAuthMode('admin')" id="authAdminTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400 cursor-pointer">管理員登入</button>
       </div>
 
       <!-- 學員驗證 -->
@@ -260,7 +231,7 @@
           <label class="text-xs font-medium text-slate-600">手機號碼</label>
           <input type="text" id="loginPhone" placeholder="例如：0912345678" class="w-full border rounded-lg p-2 text-sm">
         </div>
-        <button type="button" onclick="loginAsStudent()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm">登入預約</button>
+        <button type="button" onclick="loginAsStudent()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium text-sm cursor-pointer transition">登入預約</button>
       </div>
 
       <!-- 管理員登入 -->
@@ -269,10 +240,10 @@
           <label class="text-xs font-medium text-slate-600">管理員密碼</label>
           <input type="password" id="adminPassword" placeholder="請輸入管理員密碼" class="w-full border rounded-lg p-2 text-sm">
         </div>
-        <button type="button" onclick="loginAsAdmin()" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-medium text-sm">管理員身分登入</button>
+        <button type="button" onclick="loginAsAdmin()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-lg font-medium text-sm cursor-pointer transition">管理員身分登入</button>
       </div>
 
-      <button type="button" onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-400 hover:text-slate-600">取消</button>
+      <button type="button" onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-400 hover:text-slate-600 cursor-pointer">取消</button>
     </div>
   </div>
 
@@ -313,26 +284,32 @@
     }
     initTimeSelects();
 
-    // 初始化 Firebase
+    // 直接寫死您的 Firebase 設定進行初始化
     function initFirebase() {
-      const config = JSON.parse(localStorage.getItem('fb_config') || '{}');
-      if (config.apiKey && config.projectId) {
-        try {
-          if (!firebase.apps.length) {
-            firebase.initializeApp(config);
-          }
-          db = firebase.firestore();
-          firebase.auth().signInAnonymously().catch(err => {
-            console.warn("匿名登入提示:", err.message);
-          });
-          loadBookings();
-        } catch (e) {
-          console.error("Firebase 連線錯誤:", e);
+      const firebaseConfig = {
+        apiKey: "AIzaSyB...", // 您的正確 ApiKey
+        projectId: "ballizo-classroom", // 您的正確 ProjectId
+        appId: "1:..." // 您的正確 AppId
+      };
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
         }
-      } else {
-        openConfigModal();
+        db = firebase.firestore();
+        firebase.auth().signInAnonymously().catch(err => {
+          console.warn("匿名登入提示:", err.message);
+        });
+        loadBookings();
+      } catch (e) {
+        console.error("Firebase 連線錯誤:", e);
       }
     }
+
+    // 頁面載入後自動執行初始化
+    window.onload = function() {
+      initFirebase();
+    };
 
     // 載入預約時段
     function loadBookings() {
@@ -784,60 +761,48 @@
       if (tab === 'booking') {
         document.getElementById('bookingSection').classList.remove('hidden');
         document.getElementById('adminSection').classList.add('hidden');
-        document.getElementById('tabBookingBtn').className = 'py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600';
-        document.getElementById('tabAdminBtn').className = 'py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+        document.getElementById('tabBookingBtn').className = "py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600 cursor-pointer";
+        document.getElementById('tabAdminBtn').className = "py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 cursor-pointer";
+        loadBookings();
       } else {
         document.getElementById('bookingSection').classList.add('hidden');
         document.getElementById('adminSection').classList.remove('hidden');
-        document.getElementById('tabAdminBtn').className = 'py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600';
-        document.getElementById('tabBookingBtn').className = 'py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+        document.getElementById('tabAdminBtn').className = "py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600 cursor-pointer";
+        document.getElementById('tabBookingBtn').className = "py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 cursor-pointer";
         loadStudents();
         loadBlockedRules();
         loadAllBookings();
       }
     }
 
-    function openConfigModal() {
-      const config = JSON.parse(localStorage.getItem('fb_config') || '{}');
-      document.getElementById('cfgApiKey').value = config.apiKey || '';
-      document.getElementById('cfgProjectId').value = config.projectId || '';
-      document.getElementById('cfgAppId').value = config.appId || '';
-      document.getElementById('configModal').classList.remove('hidden');
+    function openAuthModal() {
+      document.getElementById('authModal').classList.remove('hidden');
     }
 
-    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
-
-    function saveConfig() {
-      const config = {
-        apiKey: document.getElementById('cfgApiKey').value.trim(),
-        projectId: document.getElementById('cfgProjectId').value.trim(),
-        appId: document.getElementById('cfgAppId').value.trim()
-      };
-      localStorage.setItem('fb_config', JSON.stringify(config));
-      closeConfigModal();
-      location.reload();
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
     }
-
-    function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
-    function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 
     function switchAuthMode(mode) {
+      const studentTab = document.getElementById('authStudentTab');
+      const adminTab = document.getElementById('authAdminTab');
+      const studentForm = document.getElementById('studentLoginForm');
+      const adminForm = document.getElementById('adminLoginForm');
+
       if (mode === 'student') {
-        document.getElementById('studentLoginForm').classList.remove('hidden');
-        document.getElementById('adminLoginForm').classList.add('hidden');
-        document.getElementById('authStudentTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600';
-        document.getElementById('authAdminTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400';
+        studentTab.className = "w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600 cursor-pointer";
+        adminTab.className = "w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400 cursor-pointer";
+        studentForm.classList.remove('hidden');
+        adminForm.classList.add('hidden');
       } else {
-        document.getElementById('studentLoginForm').classList.add('hidden');
-        document.getElementById('adminLoginForm').classList.remove('hidden');
-        document.getElementById('authAdminTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600';
-        document.getElementById('authStudentTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400';
+        adminTab.className = "w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600 cursor-pointer";
+        studentTab.className = "w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400 cursor-pointer";
+        adminForm.classList.remove('hidden');
+        studentForm.classList.add('hidden');
       }
     }
 
-    // 啟動與初始化
     lucide.createIcons();
-    initFirebase();
   </script>
 </body>
 </html>
