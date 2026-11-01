@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ballizo 教室預約與管理系統</title>
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+  <!-- 導覽列 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-indigo-600 text-white p-2 rounded-lg">
+          <i data-lucide="calendar"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-slate-900">Ballizo 教室預約系統</h1>
+          <p class="text-xs text-slate-500">每日 08:00 AM - 00:00 AM 開放預約</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-3">
+        <button id="configBtn" type="button" onclick="openConfigModal()" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg text-xs flex items-center gap-1 border">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          <span>Firebase 設定</span>
+        </button>
+        <button id="authBtn" type="button" onclick="openAuthModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+          <i data-lucide="user" class="w-4 h-4"></i>
+          <span id="authBtnText">學員 / 管理員登入</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="max-w-6xl mx-auto px-4 mt-6 space-y-6">
+
+    <!-- 身份提示列 -->
+    <div id="roleBanner" class="hidden bg-indigo-900 text-indigo-100 p-4 rounded-xl flex items-center justify-between shadow-md">
+      <div class="flex items-center space-x-3">
+        <span class="bg-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider text-white" id="roleBadge">管理者</span>
+        <span class="text-sm font-medium" id="roleText">您目前以管理者身份登入，擁有最高權限。</span>
+      </div>
+      <button type="button" onclick="logout()" class="text-xs bg-indigo-800 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg border border-indigo-600 transition">
+        切換身分 / 登出
+      </button>
+    </div>
+
+    <!-- 頁籤切換（管理員模式下可見） -->
+    <div id="adminTabs" class="hidden border-b border-slate-200 flex space-x-4">
+      <button type="button" onclick="switchTab('booking')" id="tabBookingBtn" class="py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600">預約教室</button>
+      <button type="button" onclick="switchTab('admin')" id="tabAdminBtn" class="py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700">管理員後台 (名單、課程與預約)</button>
+    </div>
+
+    <!-- 頁面一：預約教室區域 -->
+    <section id="bookingSection" class="space-y-6">
+      <div class="bg-indigo-600 text-white p-6 rounded-2xl shadow-sm flex justify-between items-center">
+        <div>
+          <h2 class="text-xl font-bold">歡迎使用空間預約系統</h2>
+          <p class="text-indigo-100 text-sm mt-1">預約規則：點擊選擇起始時間與終止時間，系統將自動選取中間區間（顯示為黃色）。</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+        <div class="flex items-center justify-between border-b pb-4">
+          <div class="flex items-center space-x-3">
+            <label class="text-sm font-medium text-slate-700">選擇日期：</label>
+            <input type="date" id="bookingDate" onchange="loadBookings()" class="border rounded-lg px-3 py-1.5 text-sm font-medium">
+          </div>
+          <div class="flex items-center space-x-4 text-xs font-medium text-slate-600">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-400"></span>可預約</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-500"></span>已被預約/課程</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-400"></span>目前選擇區間</span>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-bold text-slate-700 mb-3">可預約時段 (08:00 - 23:30)</h3>
+          <div id="timeGrid" class="grid grid-cols-4 md:grid-cols-8 gap-2"></div>
+        </div>
+
+        <div class="border-t pt-4 flex justify-between items-center">
+          <div class="text-sm text-slate-600">
+            已選擇區間：<span id="selectedSlotText" class="font-bold text-amber-600">無</span>
+          </div>
+          <button id="submitBookingBtn" type="button" onclick="submitBooking()" disabled class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-2 rounded-lg font-medium text-sm transition">
+            確認預約
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 頁面二：管理者後台區域 -->
+    <section id="adminSection" class="hidden space-y-6">
+      
+      <!-- 固定課程 / 批次關閉時段管理 -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="clock" class="w-5 h-5 text-indigo-600"></i>
+          固定課程 / 批次關閉時段設定
+        </h3>
+        <p class="text-xs text-slate-500">設定每週固定幾點到幾點有課程（例如每週二 10:30-15:30），該時段將自動封鎖無法預約。</p>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <select id="ruleDayOfWeek" class="border rounded-lg px-3 py-2 text-sm">
+            <option value="1">每週一</option>
+            <option value="2">每週二</option>
+            <option value="3">每週三</option>
+            <option value="4">每週四</option>
+            <option value="5">每週五</option>
+            <option value="6">每週六</option>
+            <option value="0">每週日</option>
+          </select>
+          <select id="ruleStart" class="border rounded-lg px-3 py-2 text-sm"></select>
+          <select id="ruleEnd" class="border rounded-lg px-3 py-2 text-sm"></select>
+          <input type="text" id="ruleReason" placeholder="課程名稱 (例如: 芭蕾零基礎)" class="border rounded-lg px-3 py-2 text-sm">
+          <button type="button" onclick="addBlockedRule()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 shadow-sm cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4"></i> 新增固定課程
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b bg-slate-50 text-slate-600">
+                <th class="p-3">星期</th>
+                <th class="p-3">停用時段</th>
+                <th class="p-3">課程名稱</th>
+                <th class="p-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="rulesTableBody">
+              <tr><td colspan="4" class="p-3 text-center text-slate-400">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 學員白名單管理 -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="users" class="w-5 h-5 text-indigo-600"></i>
+          允許預約學員名單 (白名單與標籤設定)
+        </h3>
+        <p class="text-xs text-slate-500">可設定學員姓名、手機、付費狀態以及有效預約期限。</p>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <input type="text" id="newStudentName" placeholder="學員姓名" class="border rounded-lg px-3 py-2 text-sm">
+          <input type="text" id="newStudentPhone" placeholder="手機號碼 (0912345678)" class="border rounded-lg px-3 py-2 text-sm">
+          <select id="newStudentType" class="border rounded-lg px-3 py-2 text-sm font-medium">
+            <option value="付費">付費會員</option>
+            <option value="免費">免費會員</option>
+          </select>
+          <input type="date" id="newStudentExpire" class="border rounded-lg px-3 py-2 text-sm" title="有效預約期限">
+          <button type="button" onclick="addStudent()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 shadow-sm cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4"></i> 新增學員
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b bg-slate-50 text-slate-600">
+                <th class="p-3">姓名</th>
+                <th class="p-3">手機號碼</th>
+                <th class="p-3">付費狀態</th>
+                <th class="p-3">有效期限</th>
+                <th class="p-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody">
+              <tr><td colspan="5" class="p-3 text-center text-slate-400">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 全校預約紀錄與強制刪除 -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="calendar-range" class="w-5 h-5 text-indigo-600"></i>
+            所有教室預約紀錄 (管理員強制管理)
+          </h3>
+          <button type="button" onclick="loadAllBookings()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border text-slate-600 flex items-center gap-1 cursor-pointer">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 重新整理
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b bg-slate-50 text-slate-600">
+                <th class="p-3">預約日期</th>
+                <th class="p-3">預約時段區間</th>
+                <th class="p-3">預約人姓名</th>
+                <th class="p-3">電話號碼</th>
+                <th class="p-3 text-right">管理員操作</th>
+              </tr>
+            </thead>
+            <tbody id="allBookingsTableBody">
+              <tr><td colspan="5" class="p-3 text-center text-slate-400">點擊重新整理載入數據...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 彈窗 1：Firebase 連線設定 Modal -->
+  <div id="configModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+      <h3 class="font-bold text-lg text-slate-900">Firebase 連線設定</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ApiKey</label>
+          <input type="text" id="cfgApiKey" class="w-full border rounded-lg p-2 text-xs font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ProjectId</label>
+          <input type="text" id="cfgProjectId" class="w-full border rounded-lg p-2 text-xs font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">AppId</label>
+          <input type="text" id="cfgAppId" class="w-full border rounded-lg p-2 text-xs font-mono">
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button type="button" onclick="closeConfigModal()" class="px-4 py-2 border rounded-lg text-xs font-medium">取消</button>
+        <button type="button" onclick="saveConfig()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium">儲存並連線</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：身份登入 Modal -->
+  <div id="authModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-xl">
+      <div class="flex border-b">
+        <button type="button" onclick="switchAuthMode('student')" id="authStudentTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600">學員登入</button>
+        <button type="button" onclick="switchAuthMode('admin')" id="authAdminTab" class="w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400">管理員登入</button>
+      </div>
+
+      <!-- 學員驗證 -->
+      <div id="studentLoginForm" class="space-y-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600">學員姓名</label>
+          <input type="text" id="loginName" placeholder="例如：張小明" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-600">手機號碼</label>
+          <input type="text" id="loginPhone" placeholder="例如：0912345678" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+        <button type="button" onclick="loginAsStudent()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium text-sm">登入預約</button>
+      </div>
+
+      <!-- 管理員登入 -->
+      <div id="adminLoginForm" class="hidden space-y-3">
+        <div>
+          <label class="text-xs font-medium text-slate-600">管理員密碼</label>
+          <input type="password" id="adminPassword" placeholder="請輸入管理員密碼" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+        <button type="button" onclick="loginAsAdmin()" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-medium text-sm">管理員身分登入</button>
+      </div>
+
+      <button type="button" onclick="closeAuthModal()" class="w-full text-center text-xs text-slate-400 hover:text-slate-600">取消</button>
+    </div>
+  </div>
+
+  <script>
+    // 初始化日期欄位
+    const dateInput = document.getElementById('bookingDate');
+    if (dateInput) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    let db = null;
+    let currentUser = null; 
+    let bookedTimesGlobal = [];
+    let blockedTimesGlobal = [];
+
+    // 區間選取狀態
+    let rangeStart = null;
+    let rangeEnd = null;
+
+    // 產生 08:00 - 23:30 選項
+    const allTimes = [];
+    for (let h = 8; h < 24; h++) {
+      allTimes.push(`${String(h).padStart(2, '0')}:00`);
+      allTimes.push(`${String(h).padStart(2, '0')}:30`);
+    }
+
+    function initTimeSelects() {
+      const startSel = document.getElementById('ruleStart');
+      const endSel = document.getElementById('ruleEnd');
+      if(!startSel || !endSel) return;
+      startSel.innerHTML = '';
+      endSel.innerHTML = '';
+      allTimes.forEach(t => {
+        startSel.innerHTML += `<option value="${t}">${t}</option>`;
+        endSel.innerHTML += `<option value="${t}">${t}</option>`;
+      });
+      endSel.value = "12:00";
+    }
+    initTimeSelects();
+
+    // 初始化 Firebase
+    function initFirebase() {
+      const config = JSON.parse(localStorage.getItem('fb_config') || '{}');
+      if (config.apiKey && config.projectId) {
+        try {
+          if (!firebase.apps.length) {
+            firebase.initializeApp(config);
+          }
+          db = firebase.firestore();
+          firebase.auth().signInAnonymously().catch(err => {
+            console.warn("匿名登入提示:", err.message);
+          });
+          loadBookings();
+        } catch (e) {
+          console.error("Firebase 連線錯誤:", e);
+        }
+      } else {
+        openConfigModal();
+      }
+    }
+
+    // 載入預約時段
+    function loadBookings() {
+      rangeStart = null;
+      rangeEnd = null;
+      updateSelectionUI();
+
+      const grid = document.getElementById('timeGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const dateInput = document.getElementById('bookingDate');
+      const dateStr = dateInput && dateInput.value ? dateInput.value : new Date().toISOString().split('T')[0];
+      const targetDate = new Date(dateStr);
+      const dayOfWeek = targetDate.getDay(); 
+
+      if (!db) {
+        allTimes.forEach(t => renderTimeBtn(grid, t, false));
+        return;
+      }
+
+      db.collection('bookings').where('date', '==', dateStr).get().then(bookingSnap => {
+        bookedTimesGlobal = [];
+        bookingSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.times && Array.isArray(data.times)) {
+            bookedTimesGlobal.push(...data.times);
+          } else if (data.time) {
+            bookedTimesGlobal.push(data.time);
+          }
+        });
+
+        db.collection('blocked_rules').where('dayOfWeek', '==', dayOfWeek).get().then(ruleSnap => {
+          blockedTimesGlobal = [];
+          ruleSnap.forEach(doc => {
+            const rule = doc.data();
+            let inRange = false;
+            allTimes.forEach(t => {
+              if (t === rule.start) inRange = true;
+              if (inRange) blockedTimesGlobal.push(t);
+              if (t === rule.end) inRange = false;
+            });
+          });
+
+          renderGrid();
+        }).catch(err => {
+          console.warn("讀取固定課程規則失敗:", err);
+          renderGrid();
+        });
+      }).catch(err => {
+        console.warn("載入預約失敗:", err);
+        renderGrid();
+      });
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('timeGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      allTimes.forEach(t => {
+        const isUnavailable = bookedTimesGlobal.includes(t) || blockedTimesGlobal.includes(t);
+        renderTimeBtn(grid, t, isUnavailable);
+      });
+    }
+
+    function renderTimeBtn(container, timeStr, isBooked) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerText = timeStr;
+      btn.dataset.time = timeStr;
+
+      let className = 'py-2 rounded-lg text-xs font-semibold border transition ';
+      if (isBooked) {
+        className += 'bg-rose-500 text-white border-rose-500 cursor-not-allowed';
+      } else {
+        let inRange = false;
+        if (rangeStart && rangeEnd) {
+          if (timeStr >= rangeStart && timeStr <= rangeEnd) inRange = true;
+        } else if (rangeStart === timeStr) {
+          inRange = true;
+        }
+
+        if (inRange) {
+          className += 'bg-amber-400 text-slate-900 border-amber-500 shadow-md font-bold cursor-pointer';
+        } else {
+          className += 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 cursor-pointer';
+        }
+        btn.onclick = () => handleTimeClick(timeStr);
+      }
+      btn.className = className;
+      container.appendChild(btn);
+    }
+
+    function handleTimeClick(timeStr) {
+      if (!rangeStart) {
+        rangeStart = timeStr;
+        rangeEnd = null;
+      } else if (rangeStart && !rangeEnd) {
+        if (timeStr === rangeStart) {
+          rangeStart = null;
+          rangeEnd = null;
+        } else if (timeStr < rangeStart) {
+          rangeStart = timeStr;
+          rangeEnd = null;
+        } else {
+          let hasConflict = false;
+          let inRange = false;
+          allTimes.forEach(t => {
+            if (t === rangeStart) inRange = true;
+            if (inRange) {
+              if (bookedTimesGlobal.includes(t) || blockedTimesGlobal.includes(t)) {
+                hasConflict = true;
+              }
+            }
+            if (t === timeStr) inRange = false;
+          });
+
+          if (hasConflict) {
+            alert('您選擇的區間內包含已被預約或上課的時段，請重新選擇！');
+            rangeStart = null;
+            rangeEnd = null;
+          } else {
+            rangeEnd = timeStr;
+          }
+        }
+      } else {
+        rangeStart = timeStr;
+        rangeEnd = null;
+      }
+
+      renderGrid();
+      updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+      const slotText = document.getElementById('selectedSlotText');
+      const submitBtn = document.getElementById('submitBookingBtn');
+
+      if (rangeStart && rangeEnd) {
+        if (slotText) slotText.innerText = `${rangeStart} ~ ${rangeEnd}`;
+        if (submitBtn) submitBtn.disabled = false;
+      } else if (rangeStart) {
+        if (slotText) slotText.innerText = `${rangeStart} (請點選終止時間)`;
+        if (submitBtn) submitBtn.disabled = true;
+      } else {
+        if (slotText) slotText.innerText = '無';
+        if (submitBtn) submitBtn.disabled = true;
+      }
+    }
+
+    // 提交預約
+    function submitBooking() {
+      if (!currentUser) {
+        alert('請先進行學員登入！');
+        openAuthModal();
+        return;
+      }
+      const dateInput = document.getElementById('bookingDate');
+      const dateStr = dateInput ? dateInput.value : '';
+      if (!dateStr || !rangeStart || !rangeEnd) return alert('請完整選擇起始與終止時間！');
+
+      const selectedTimes = [];
+      let inRange = false;
+      allTimes.forEach(t => {
+        if (t === rangeStart) inRange = true;
+        if (inRange) selectedTimes.push(t);
+        if (t === rangeEnd) inRange = false;
+      });
+      
+      db.collection('bookings').add({
+        date: dateStr,
+        times: selectedTimes,
+        time: `${rangeStart} ~ ${rangeEnd}`,
+        userName: currentUser.name,
+        userPhone: currentUser.phone,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        alert('預約成功！');
+        loadBookings();
+        if (currentUser.role === 'admin') loadAllBookings();
+      }).catch(err => {
+        alert("預約寫入失敗: " + err.message);
+      });
+    }
+
+    // 登入邏輯（加入會員檢核與有效期限驗證）
+    function loginAsStudent() {
+      const name = document.getElementById('loginName').value.trim();
+      const phone = document.getElementById('loginPhone').value.trim();
+      if (!name || !phone) return alert('請完整填寫姓名與電話！');
+
+      if (!db) {
+        alert("Firebase 未連線！");
+        return;
+      }
+
+      db.collection('students').where('phone', '==', phone).get().then(snap => {
+        if (snap.empty) {
+          alert('非會員無法預約，請聯繫管理者');
+        } else {
+          const studentDoc = snap.docs[0].data();
+          
+          // 檢查有效預約期限 (格式為 YYYY-MM-DD)
+          if (studentDoc.expireDate) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (todayStr > studentDoc.expireDate) {
+              alert('已超過可預約時間，請與管理者聯繫');
+              return;
+            }
+          }
+
+          currentUser = { 
+            role: 'student', 
+            name: studentDoc.name || name, 
+            phone, 
+            memberType: studentDoc.memberType || '付費',
+            expireDate: studentDoc.expireDate || ''
+          };
+          updateUserUI();
+          closeAuthModal();
+        }
+      }).catch(err => {
+        alert("登入驗證失敗: " + err.message);
+      });
+    }
+
+    function loginAsAdmin() {
+      const pwd = document.getElementById('adminPassword').value;
+      if (pwd === '790531') { 
+        currentUser = { role: 'admin', name: '系統管理員', phone: '0000000000' };
+        updateUserUI();
+        closeAuthModal();
+        loadStudents();
+        loadBlockedRules();
+        loadAllBookings();
+        switchTab('admin');
+      } else {
+        alert('管理員密碼錯誤！');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      updateUserUI();
+      switchTab('booking');
+    }
+
+    function updateUserUI() {
+      const banner = document.getElementById('roleBanner');
+      const tabs = document.getElementById('adminTabs');
+      const authBtnText = document.getElementById('authBtnText');
+
+      if (currentUser) {
+        if (banner) banner.classList.remove('hidden');
+        if (authBtnText) authBtnText.innerText = `${currentUser.name} (${currentUser.role === 'admin' ? '管理員' : '學員'})`;
+        const badge = document.getElementById('roleBadge');
+        if (badge) badge.innerText = currentUser.role === 'admin' ? '管理者' : '學員';
+        const roleText = document.getElementById('roleText');
+        if (roleText) roleText.innerText = `已登入：${currentUser.name} ${currentUser.phone} (${currentUser.memberType || '會員'})`;
+
+        if (currentUser.role === 'admin') {
+          if (tabs) tabs.classList.remove('hidden');
+        } else {
+          if (tabs) tabs.classList.add('hidden');
+        }
+      } else {
+        if (banner) banner.classList.add('hidden');
+        if (tabs) tabs.classList.add('hidden');
+        if (authBtnText) authBtnText.innerText = '學員 / 管理員登入';
+      }
+    }
+
+    // 1. 固定課程規則管理
+    const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    function loadBlockedRules() {
+      if (!db) return;
+      db.collection('blocked_rules').get().then(snap => {
+        const tbody = document.getElementById('rulesTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (snap.empty) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">目前尚無設定固定課程</td></tr>';
+          return;
+        }
+        snap.forEach(doc => {
+          const data = doc.data();
+          tbody.innerHTML += `
+            <tr class="border-b hover:bg-slate-50 transition">
+              <td class="p-3 font-medium text-slate-700">${dayNames[data.dayOfWeek]}</td>
+              <td class="p-3"><span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded text-xs font-bold">${data.start} ~ ${data.end}</span></td>
+              <td class="p-3 font-medium text-slate-800">${data.reason}</td>
+              <td class="p-3 text-right">
+                <button type="button" onclick="deleteBlockedRule('${doc.id}', '${data.reason}')" class="p-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg border border-rose-200 transition inline-flex items-center gap-1 text-xs cursor-pointer" title="刪除此固定課程">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  <span>刪除</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        lucide.createIcons();
+      }).catch(err => {
+        console.error("載入固定課程失敗:", err);
+      });
+    }
+
+    function addBlockedRule() {
+      if (!db) return alert("Firebase 未連線！");
+      const dayOfWeek = parseInt(document.getElementById('ruleDayOfWeek').value);
+      const start = document.getElementById('ruleStart').value;
+      const end = document.getElementById('ruleEnd').value;
+      const reason = document.getElementById('ruleReason').value.trim() || '固定課程';
+
+      if (start >= end) {
+        alert('結束時間必須大於開始時間！');
+        return;
+      }
+
+      db.collection('blocked_rules').add({ dayOfWeek, start, end, reason }).then(() => {
+        document.getElementById('ruleReason').value = '';
+        alert('固定課程時段新增成功！');
+        loadBlockedRules();
+        loadBookings();
+      }).catch(err => {
+        alert("新增失敗: " + err.message);
+      });
+    }
+
+    function deleteBlockedRule(id, name) {
+      if (confirm(`確定刪除『${name || '此固定課程'}』嗎？`)) {
+        db.collection('blocked_rules').doc(id).delete().then(() => {
+          alert('刪除完成！');
+          loadBlockedRules();
+          loadBookings();
+        }).catch(err => {
+          alert("刪除失敗: " + err.message);
+        });
+      }
+    }
+
+    // 2. 學員白名單管理 (含付費標籤與有效期限)
+    function loadStudents() {
+      if (!db) return;
+      db.collection('students').get().then(snap => {
+        const tbody = document.getElementById('studentTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (snap.empty) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">目前尚無許可學員</td></tr>';
+          return;
+        }
+        snap.forEach(doc => {
+          const data = doc.data();
+          const badgeColor = data.memberType === '免費' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300';
+          tbody.innerHTML += `
+            <tr class="border-b hover:bg-slate-50 transition">
+              <td class="p-3 font-medium text-slate-800">${data.name}</td>
+              <td class="p-3 text-slate-600 font-mono">${data.phone}</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold border ${badgeColor}">${data.memberType || '付費'}</span></td>
+              <td class="p-3 text-slate-600 font-mono text-xs">${data.expireDate || '未設定'}</td>
+              <td class="p-3 text-right">
+                <button type="button" onclick="deleteStudent('${doc.id}', '${data.name}')" class="p-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg border border-rose-200 transition inline-flex items-center gap-1 text-xs cursor-pointer" title="刪除學員">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  <span>刪除</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        lucide.createIcons();
+      });
+    }
+
+    function addStudent() {
+      if (!db) return alert("Firebase 未連線！");
+      const name = document.getElementById('newStudentName').value.trim();
+      const phone = document.getElementById('newStudentPhone').value.trim();
+      const memberType = document.getElementById('newStudentType').value;
+      const expireDate = document.getElementById('newStudentExpire').value;
+
+      if (!name || !phone) return alert('請填寫完整姓名與手機號碼！');
+
+      db.collection('students').add({ name, phone, memberType, expireDate }).then(() => {
+        document.getElementById('newStudentName').value = '';
+        document.getElementById('newStudentPhone').value = '';
+        document.getElementById('newStudentExpire').value = '';
+        alert(`學員『${name}』新增成功！`);
+        loadStudents();
+      }).catch(err => {
+        alert("新增學員失敗: " + err.message);
+      });
+    }
+
+    function deleteStudent(id, name) {
+      if (confirm(`確定刪除學員『${name}』嗎？`)) {
+        db.collection('students').doc(id).delete().then(() => {
+          alert('刪除完成！');
+          loadStudents();
+        });
+      }
+    }
+
+    // 3. 全校預約紀錄與強制刪除
+    function loadAllBookings() {
+      if (!db) return;
+      db.collection('bookings').orderBy('date', 'desc').get().then(snap => {
+        const tbody = document.getElementById('allBookingsTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (snap.empty) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">目前尚無任何預約紀錄</td></tr>';
+          return;
+        }
+        snap.forEach(doc => {
+          const data = doc.data();
+          const displayTime = data.time || (data.times ? `${data.times[0]} ~ ${data.times[data.times.length-1]}` : '時段');
+          tbody.innerHTML += `
+            <tr class="border-b hover:bg-slate-50 transition">
+              <td class="p-3 font-medium text-slate-800">${data.date}</td>
+              <td class="p-3"><span class="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded text-xs font-bold">${displayTime}</span></td>
+              <td class="p-3 font-medium text-slate-800">${data.userName}</td>
+              <td class="p-3 text-slate-600 font-mono">${data.userPhone}</td>
+              <td class="p-3 text-right">
+                <button type="button" onclick="adminDeleteBooking('${doc.id}', '${data.date} ${displayTime} ${data.userName}')" class="p-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg border border-rose-200 transition inline-flex items-center gap-1 text-xs cursor-pointer" title="強制刪除預約">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  <span>刪除</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        lucide.createIcons();
+      });
+    }
+
+    function adminDeleteBooking(bookingId, info) {
+      if (confirm(`確定刪除預約紀錄『${info}』嗎？`)) {
+        db.collection('bookings').doc(bookingId).delete().then(() => {
+          alert('刪除完成！');
+          loadAllBookings();
+          loadBookings();
+        });
+      }
+    }
+
+    // Modal 與 Tab 控制
+    function switchTab(tab) {
+      if (tab === 'booking') {
+        document.getElementById('bookingSection').classList.remove('hidden');
+        document.getElementById('adminSection').classList.add('hidden');
+        document.getElementById('tabBookingBtn').className = 'py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600';
+        document.getElementById('tabAdminBtn').className = 'py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+      } else {
+        document.getElementById('bookingSection').classList.add('hidden');
+        document.getElementById('adminSection').classList.remove('hidden');
+        document.getElementById('tabAdminBtn').className = 'py-2 px-4 font-medium border-b-2 border-indigo-600 text-indigo-600';
+        document.getElementById('tabBookingBtn').className = 'py-2 px-4 font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+        loadStudents();
+        loadBlockedRules();
+        loadAllBookings();
+      }
+    }
+
+    function openConfigModal() {
+      const config = JSON.parse(localStorage.getItem('fb_config') || '{}');
+      document.getElementById('cfgApiKey').value = config.apiKey || '';
+      document.getElementById('cfgProjectId').value = config.projectId || '';
+      document.getElementById('cfgAppId').value = config.appId || '';
+      document.getElementById('configModal').classList.remove('hidden');
+    }
+
+    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
+
+    function saveConfig() {
+      const config = {
+        apiKey: document.getElementById('cfgApiKey').value.trim(),
+        projectId: document.getElementById('cfgProjectId').value.trim(),
+        appId: document.getElementById('cfgAppId').value.trim()
+      };
+      localStorage.setItem('fb_config', JSON.stringify(config));
+      closeConfigModal();
+      location.reload();
+    }
+
+    function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); }
+    function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+
+    function switchAuthMode(mode) {
+      if (mode === 'student') {
+        document.getElementById('studentLoginForm').classList.remove('hidden');
+        document.getElementById('adminLoginForm').classList.add('hidden');
+        document.getElementById('authStudentTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600';
+        document.getElementById('authAdminTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400';
+      } else {
+        document.getElementById('studentLoginForm').classList.add('hidden');
+        document.getElementById('adminLoginForm').classList.remove('hidden');
+        document.getElementById('authAdminTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-indigo-600 text-indigo-600';
+        document.getElementById('authStudentTab').className = 'w-1/2 py-2 text-center font-bold text-sm border-b-2 border-transparent text-slate-400';
+      }
+    }
+
+    // 啟動與初始化
+    lucide.createIcons();
+    initFirebase();
+  </script>
+</body>
+</html>
